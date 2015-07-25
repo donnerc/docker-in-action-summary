@@ -1,0 +1,262 @@
+:imagesdir: figures
+
+== Network
+
+.Concepts à approfondir
+[NOTE]
+====
+* Les ponts réseaux
+* Linux networking
+* utilitaire `nmap`
+* utilitaire `nc` netcat (http://www.gayuxweb.fr/learn/netcat), couteau suisse
+des réseaux sous Linux.
+* notation CIDR (Classless Inter-Domain Routing)
+====
+
+=== Bases des réseaux
+
+==== Protocoles, interfaces, ports
+
+* adresses IP
+* ports IP
+* interfaces
+* protocoles
+
+==== Bigger Picture: Networks, NAT, port Forwarding
+
+.Bridge / Pont réseau
+[NOTE]
+====
+Un **Pont** est une interface qui connecte plusieurs réseaux entre eux
+pour qu'ils ne fonctionnent que comme un seul réseau.
+
+Un pont travaille sur les deux couches les plus basses du modèle OSI (Physique /
+MAC)
+
+* http://windows.microsoft.com/en-us/windows-vista/what-is-a-network-bridge
+* https://en.wikipedia.org/wiki/Bridging_%28networking%29
+====
+
+=== Local Docker Network Topology
+
+
+
+=== Four Network Container Archetypes
+
+Les types de conteneurs suivants sont classés dans l'ordre décroissant de la
+sécurité.
+
+image::network-containers-archetypes.png[title="Les quatre types de conteneurs
+réseaux"]
+
+
+=== Closed Containers
+`docker run --net none`::
+  `none` : démarre le conteneur en mode fermé
+
+=== Bridged Containers
+==== Reaching Out
+`docker run --net bridge`::
+Démarre le conteneur en mode pont. Permet aux applications d'avoir accès à
+l'extérieur, mais ne permet pas encore à l'extérieur d'avoir accès au conteneur.
+
+==== Custom Name Resolution
+.Réglages DNS du conteneur créé
+[NOTE]
+====
+Les options suivantes sont également valides pour les autres types de conteneurs
+moins sécurisés:
+
+`--hostname`::
+`--dns <dns-server-ip>`::
+`--dns-search <domain-name>`:: Permet de spécifier `subdmain` pour dire
+`subdomain.domain-name`
+`--add-host <hostname>:<ip>`:: ajoute des entrées au fichier `/etc/hosts`
+====
+
+==== Opening Inbound Communication
+
+Par défaut, les conteneurs en mode *bridge* ne peuvent pas être accédés depuis
+les interfaces de l'hôte.
+
+Il faut ajouter des associations entre les ports de conteneur et les ports de
+l'interface `docker0`. Voici les options disponibles :
+
+.Syntaxe générale
+....
+docker run -p <mapping>
+docker run --puplish <mapping>
+....
+
+.Opions de mappage de ports
+[NOTE]
+====
+Les options suivantes sont également valides pour les autres types de conteneurs
+moins sécurisés:
+
+`-p container-port`::
+Associe le port `container-port` du conteneur à un port dynamique (random) sur
+toutes les interfaces de l'hôte.
+`-p host-port:container-port`::
+Associe le port `container-port` du conteneur au port `host-port` sur toutes les
+interfaces de l'hôte.
+`-p ip:container-port`::
+Associe le port `container-port` à un port dynamique sur l'interface `ip` de
+l'hôte.
+`-p ip:host-port:container-port`::
+Associe le port `container-port` au port `host-port` de l'interface `ip` de
+l'hôte.
+====
+
+Au lieu de définir tous ces mappages à la main, les images peuvent également
+spécifier des ports qui sont *exposés*. Les ports exposés par les images peuvent
+être publiés automatiquement avec l'option `--publish-all` ou `-P`:
+
+.Opions
+[NOTE]
+====
+`-P` ou `--publish-all`::
+Publie tous les ports exposés par le conteneur comme s'ils avaient été publiés
+avec `-p <port>`, donc avec un mappage dynamique.
+`--expose <port>`::
+Rajoute le port `port` à la liste des ports exposés par le conteneur et publiés
+par l'option `-P`.
+====
+
+===== Découvrir les mappages dynamiques
+
+On peut savoir à quel port du host les ports ont été mappés avec
+`docker inspect` ou, mieux encore, avec `docker port`. Voici un exemple pour
+une image qui expose les ports 5000, 6000 et 7000 :
+
+.Exécution du conteneur
+............................................................................
+docker run –d --name philbin --expose 8000 –P allingeek/ch5_expose
+............................................................................
+
+
+.Commandes
+............................................................................
+docker port <container-id>
+docker port philbin
+............................................................................
+
+.Sortie
+............................................................................
+5000/tcp -> 0.0.0.0:49164
+6000/tcp -> 0.0.0.0:49165
+7000/tcp -> 0.0.0.0:49166
+8000/tcp -> 0.0.0.0:49163
+............................................................................
+
+
+==== Inter Container Communication
+
+.Situation dangereuse
+image::bridge-inter-container-communication-default.png[title="Conteneurs
+connectés au même réseau Bridge Docker"]
+
+[WARNING]
+====
+Par défaut, tous les conteneurs sont ouverts aux autres sur le réseau de l'host.
+Ce n'est pas sécurisé et il est bien de désactiver cette ouverture par défaut de
+tous les conteneurs avec l'option `--icc` lors du démarrage du démon `docker`:
+
+....
+docker -d --icc=false
+....
+====
+
+Cela oblige ensuite à autoriser explicitement des communications entre certains
+conteneurs.
+
+==== Modifying the Bridge Interface
+
+Voici les éléments que l'on peut personnaliser :
+
+. définir adresse IP et sous-réseau du pont
+. Définir la plage d'adresses IP assignables aux conteneurs
+. Défintion de la MTU (Maximum Transmission Unit) qui correspond à la taille des
+paquets ... ne me semble pas très important à connaître.
+
+.Exemples de commandes
+[source, bash]
+............................................................................
+# utilisation de la notation CIDR pour indiquer
+# la plage d'adresses
+docker -d --bip "192.168.0.128/25"
+
+# voir page 82 pour davantage d'explications
+docker -d --fixed-cidr "192.168.0.192/26"
+............................................................................
+
+=== Joined Containers
+
+Lorsque deux conteneurs sont joints, ils partagent leurs interfaces réseaux
+(network stack).
+Cette option supprime toute option de sécurité entre les deux conteneurs.
+
+.Création de conteneurs joints
+[source, bash]
+............................................................................
+# utilisation de netcat (nc) pour écouter sur le port 3333
+docker run --name brady -d --net none busybox:latest nc -l 127.0.0.1:3333
+
+# docker run --rm -it \
+  --net container:brady \ //<1>
+  busybox:latest netstat -al
+............................................................................
+<1> Le deuxième conteneur est joint au premier. On ne peut que joindre des
+nouveaux conteneurs à des conteneurs existants.
+
+
+=== Open Containers
+
+C'est la version la plus insécurisée. Le conteneur a accès à tout le réseau de
+l'hôte pratiquement sans restriction.
+
+.Création
+............................................................................
+docker run --rm \
+  --net host \
+  busybox:latest ifconfif
+............................................................................
+
+=== Inter-Container Dependencies
+
+==== Introducing Links for Local Service Discovery
+
+On a déjà utilisé l'otion `--link` pour créer des liens entre les conteneurs.
+
+.Syntaxe
+............................................................................
+docker run --link <container-name-or-id>:<alias> ...
+............................................................................
+
+
+.Actions des liens
+[NOTE]
+============================================================================
+. Modifie pas mal de choses comme variables d'environnement, configuration DNS,
+`/etc/hosts` etc ...
+
+. Création d'un lien avec `alias` dans le fichier /etc/hosts pour pouvoir
+accéder facilement au conteneur lié.
+
+. si `icc=false`, Docker va ajouter des règles firewall spécifiques pour
+permette la communication entre les conteneurs liés.
+
+============================================================================
+
+
+==== Link Aliases
+
+WARNING: J'en ai marre de taper ce résumé et je vais garder le livre à portée de
+mains, je pourrai y revenir au besoin. J'ai noté les concepts essentiels et
+compris les fonctionnalités dont j'ai vraiment besoin dans Docker pour le moment.
+
+==== Environment Modifications
+
+==== Link Nature and Shortcomings
+
+=== Résumé
