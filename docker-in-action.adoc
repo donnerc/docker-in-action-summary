@@ -3,6 +3,11 @@
 .Super feuille de triche
 NOTE: https://github.com/donnerc/docker-cheat-sheet
 
+NOTE: Il faut vraiment consulter la documentation de Docker qui est vraiment
+bien
+faite. La lecture des livres me semble assez inefficace. Il y a même un cours ne
+vidéo sous https://training.docker.com/introduction-to-docker
+
 == Welcome to Docker
 
 == Controlling Clutter and Conflicts
@@ -10,3 +15,4 @@ NOTE: https://github.com/donnerc/docker-cheat-sheet
 == Software Installation Simplified
 
 include::ch04/main.adoc[]
+include::ch05/main.adoc[]
