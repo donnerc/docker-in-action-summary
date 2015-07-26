@@ -8,6 +8,7 @@ bien
 faite. La lecture des livres me semble assez inefficace. Il y a même un cours ne
 vidéo sous https://training.docker.com/introduction-to-docker
 
+
 == Welcome to Docker
 
 == Controlling Clutter and Conflicts
@@ -16,3 +17,6 @@ vidéo sous https://training.docker.com/introduction-to-docker
 
 include::ch04/main.adoc[]
 include::ch05/main.adoc[]
+
+
+include::boot2docker/main.adoc[]

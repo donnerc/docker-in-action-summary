@@ -1,0 +1,22 @@
+== Utilisation de Boot2Docker sous Windows 8
+
+De base, boot2docker ne semble pas fonctionner dans MSysGit installé par
+Boot2Docker.
+
+* Pour exécuter les commandes `docker ...`, il faut d'abord se connecter à la VM
+qui tourne dans VBox et démarrer le démon *Docker* dans cette VM. Pour ce faire,
+il faut rajouter le dossier d'installation à la variable d'environnement `PATH`.
+* On accède ensuite à la commande `boot2docker.exe` dans ce dossier depuis
+cygwin ou n'importe quel autre terminal.
+
+.Commandes utiles
+[NOTE]
+============================================================================
+`boot2docker start|stop|restart`::
+Agit sur la machine virtuelle pour la démarrer|arrêter|redémarrer
+`boot2docker ip`::
+Retourne l'adresse IP de la machine virtuelle VBox dans le réseau géré par VBox
+`boot2docker ssh`::
+Se logue dans la machine virtuelle. Il est ensuite possible d'exploiter `docker`
+de manière standard.
+============================================================================
